@@ -1,0 +1,4 @@
+/* Keep the hero text readable on small screens */
+@media (max-width: 576px) {
+  .display-4 { font-size: 2rem; }
+}
