@@ -1,6 +1,8 @@
 # jobBoard
 job board prototype
 
+### filestructure
+```
 job‑board‑prototype/
 │
 ├─ backend/                 # Python API
@@ -14,9 +16,9 @@ job‑board‑prototype/
 │   └─ script.js
 │
 └─ README.md
+```
 
-####
-Run the backend
+#### Run the backend
 
 ```
 cd backend
