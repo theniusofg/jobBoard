@@ -1,108 +1,56 @@
 name: Fetch Google Sheets Data
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *'  # Daily at midnight
+    - cron: '0 0 * * *'
 
 jobs:
   fetch-sheets-data:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
       with:
-        node-version: '16'
+        node-version: '20'
     
-    - name: Install Dependencies
-      run: |
-        npm init -y
-        npm install googleapis
+    - name: Install googleapis
+      run: npm install googleapis
     
-    - name: Write credentials file
+    - name: Fetch and save data
       env:
-        GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+        GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+        SPREADSHEET_ID: '1pYihXbRT8heKDOqbl8MxGZxlzeA6ka_TyeazM-0Tts4'
       run: |
-        echo "$GOOGLE_SERVICE_ACCOUNT_KEY" > credentials.json
-        echo "Credentials file created"
-        echo "File size: $(wc -c < credentials.json) bytes"
-        echo "First 50 characters:"
-        head -c 50 credentials.json
-        echo ""
-    
-    - name: Create fetch script
-      run: |
-        cat > fetch.js << 'EOF'
+        node << 'SCRIPT'
         const { google } = require('googleapis');
         const fs = require('fs');
 
-        async function fetchSheetsData() {
-          try {
-            // Check if file exists and has content
-            if (!fs.existsSync('credentials.json')) {
-              throw new Error('credentials.json file not found');
-            }
-            
-            const fileContent = fs.readFileSync('credentials.json', 'utf8');
-            console.log('Credentials file size:', fileContent.length, 'bytes');
-            
-            if (!fileContent || fileContent.trim().length === 0) {
-              throw new Error('credentials.json is empty');
-            }
-            
-            const credentials = JSON.parse(fileContent);
-            
-            const auth = new google.auth.GoogleAuth({
-              credentials: credentials,
-              scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
-            });
+        (async () => {
+          const auth = new google.auth.GoogleAuth({
+            credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
+            scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
+          });
 
-            const sheets = google.sheets({ version: 'v4', auth });
-            
-            const SPREADSHEET_ID = '1pYihXbRT8heKDOqbl8MxGZxlzeA6ka_TyeazM-0Tts4';
-            
-            const response = await sheets.spreadsheets.values.get({
-              spreadsheetId: SPREADSHEET_ID,
-              range: 'Sheet1'
-            });
+          const sheets = google.sheets({ version: 'v4', auth });
+          
+          const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: process.env.SPREADSHEET_ID,
+            range: 'Sheet1'
+          });
 
-            fs.writeFileSync('sheets_data.json', JSON.stringify(response.data.values, null, 2));
-            console.log('Data saved to sheets_data.json');
-            console.log('Rows fetched:', response.data.values ? response.data.values.length : 0);
-          } catch (error) {
-            console.error('Error fetching data:', error.message);
-            console.error('Full error:', error);
-            process.exit(1);
-          }
-        }
-
-        fetchSheetsData();
-        EOF
+          fs.writeFileSync('sheets_data.json', JSON.stringify(response.data.values, null, 2));
+          console.log(`✓ Fetched ${response.data.values?.length || 0} rows`);
+        })();
+        SCRIPT
     
-    - name: Fetch Google Sheets Data
-      run: node fetch.js
-    
-    - name: Clean up credentials
-      if: always()
-      run: rm -f credentials.json
-    
-    - name: Verify file exists
+    - name: Commit changes
       run: |
-        if [ -f sheets_data.json ]; then
-          echo "File created successfully"
-          cat sheets_data.json
-        else
-          echo "File was not created"
-          exit 1
-        fi
-    
-    - name: Commit and Push Data
-      run: |
-        git config user.name github-actions
-        git config user.email github-actions@github.com
+        git config user.name github-actions[bot]
+        git config user.email github-actions[bot]@users.noreply.github.com
         git add sheets_data.json
-        git diff --staged --quiet || git commit -m "Update sheets data"
+        git diff --staged --quiet || git commit -m "Update sheets data [skip ci]"
         git push
