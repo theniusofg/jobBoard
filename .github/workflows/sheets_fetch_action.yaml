@@ -22,9 +22,14 @@ jobs:
         npm init -y
         npm install googleapis
     
-    - name: Create fetch script
+    - name: Write credentials file
       env:
         GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+      run: |
+        echo "$GOOGLE_SERVICE_ACCOUNT_KEY" > credentials.json
+        echo "Credentials file created"
+    
+    - name: Create fetch script
       run: |
         cat > fetch.js << 'EOF'
         const { google } = require('googleapis');
@@ -32,15 +37,11 @@ jobs:
 
         async function fetchSheetsData() {
           try {
-            // Check if environment variable exists
-            if (!process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
-              throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY environment variable is not set');
-            }
-
-            console.log('Service account key length:', process.env.GOOGLE_SERVICE_ACCOUNT_KEY.length);
+            // Read credentials from file
+            const credentials = JSON.parse(fs.readFileSync('credentials.json', 'utf8'));
             
             const auth = new google.auth.GoogleAuth({
-              credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
+              credentials: credentials,
               scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
             });
 
@@ -58,25 +59,20 @@ jobs:
             console.log('Rows fetched:', response.data.values ? response.data.values.length : 0);
           } catch (error) {
             console.error('Error fetching data:', error.message);
+            console.error('Full error:', error);
             process.exit(1);
           }
         }
 
         fetchSheetsData();
         EOF
-        
-        echo "Script created, checking environment..."
-        if [ -z "$GOOGLE_SERVICE_ACCOUNT_KEY" ]; then
-          echo "ERROR: GOOGLE_SERVICE_ACCOUNT_KEY is not available in this step"
-          exit 1
-        else
-          echo "Environment variable is available (length: ${#GOOGLE_SERVICE_ACCOUNT_KEY})"
-        fi
     
     - name: Fetch Google Sheets Data
-      env:
-        GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
       run: node fetch.js
+    
+    - name: Clean up credentials
+      if: always()
+      run: rm -f credentials.json
     
     - name: Verify file exists
       run: |
