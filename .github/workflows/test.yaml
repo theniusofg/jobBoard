@@ -1,0 +1,20 @@
+name: Test Secret
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check secret
+      env:
+        GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.BOB }}
+      run: |
+        echo "Secret length: ${#GOOGLE_SERVICE_ACCOUNT_KEY}"
+        if [ -z "$GOOGLE_SERVICE_ACCOUNT_KEY" ]; then
+          echo "❌ Secret is empty"
+        else
+          echo "✅ Secret is set"
+          echo "${GOOGLE_SERVICE_ACCOUNT_KEY:0:50}..." # Show first 50 chars
+        fi
