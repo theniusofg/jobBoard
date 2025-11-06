@@ -9,7 +9,7 @@ jobs:
     steps:
     - name: Check secret
       env:
-        GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.BOB }}
+        GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
       run: |
         echo "Secret length: ${#GOOGLE_SERVICE_ACCOUNT_KEY}"
         if [ -z "$GOOGLE_SERVICE_ACCOUNT_KEY" ]; then

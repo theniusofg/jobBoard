@@ -28,6 +28,10 @@ jobs:
       run: |
         echo "$GOOGLE_SERVICE_ACCOUNT_KEY" > credentials.json
         echo "Credentials file created"
+        echo "File size: $(wc -c < credentials.json) bytes"
+        echo "First 50 characters:"
+        head -c 50 credentials.json
+        echo ""
     
     - name: Create fetch script
       run: |
@@ -37,8 +41,19 @@ jobs:
 
         async function fetchSheetsData() {
           try {
-            // Read credentials from file
-            const credentials = JSON.parse(fs.readFileSync('credentials.json', 'utf8'));
+            // Check if file exists and has content
+            if (!fs.existsSync('credentials.json')) {
+              throw new Error('credentials.json file not found');
+            }
+            
+            const fileContent = fs.readFileSync('credentials.json', 'utf8');
+            console.log('Credentials file size:', fileContent.length, 'bytes');
+            
+            if (!fileContent || fileContent.trim().length === 0) {
+              throw new Error('credentials.json is empty');
+            }
+            
+            const credentials = JSON.parse(fileContent);
             
             const auth = new google.auth.GoogleAuth({
               credentials: credentials,
