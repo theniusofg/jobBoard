@@ -21,18 +21,7 @@ jobs:
       run: |
         npm init -y
         npm install googleapis
-
-    - name: Debug - Check secret exists
-      run: |
-        if [ -z "$GOOGLE_SERVICE_ACCOUNT_KEY" ]; then
-          echo "Secret is empty or not set!"
-          exit 1
-        else
-          echo "Secret exists (length: ${#GOOGLE_SERVICE_ACCOUNT_KEY})"
-        fi
-      env:
-        GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.BOB }}
-    
+   
     - name: Create fetch script
       run: |
         cat > fetch.js << 'EOF'
@@ -69,7 +58,7 @@ jobs:
     
     - name: Fetch Google Sheets Data
       env:
-        GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.BOB}}
+        GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.BOB }}
       run: node fetch.js
     
     - name: Verify file exists
