@@ -31,7 +31,7 @@ jobs:
           echo "Secret exists (length: ${#GOOGLE_SERVICE_ACCOUNT_KEY})"
         fi
       env:
-        GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+        GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.BOB }}
     
     - name: Create fetch script
       run: |
@@ -69,7 +69,7 @@ jobs:
     
     - name: Fetch Google Sheets Data
       env:
-        GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+        GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.BOB}}
       run: node fetch.js
     
     - name: Verify file exists
