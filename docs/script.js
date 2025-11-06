@@ -1,6 +1,7 @@
 // Configuration
 const DATA_URL = "sheets_data.json";
 let modal = null;
+let allJobs = []; // Store jobs globally
 
 // Initialize when page loads
 window.addEventListener("DOMContentLoaded", init);
@@ -14,7 +15,9 @@ function init() {
 async function loadJobs() {
   try {
     const jobs = await fetchJobsFromSheet();
-    displayJobs(jobs);
+    const activeJobs = filterActiveJobs(jobs);
+    allJobs = activeJobs; // Store for later use
+    displayJobs(activeJobs);
   } catch (err) {
     console.error("Error loading jobs:", err);
     showError();
@@ -39,6 +42,17 @@ async function fetchJobsFromSheet() {
   }));
 }
 
+// Filter out jobs past their close date
+function filterActiveJobs(jobs) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  return jobs.filter(job => {
+    const closeDate = new Date(job.close_date);
+    return closeDate >= today;
+  });
+}
+
 // Render jobs to the page
 function displayJobs(jobs) {
   const container = document.getElementById("jobs-container");
@@ -48,21 +62,21 @@ function displayJobs(jobs) {
     return;
   }
   
-  container.innerHTML = jobs.map(job => createJobCard(job)).join("");
+  container.innerHTML = jobs.map((job, index) => createJobCard(job, index)).join("");
   attachCardListeners();
 }
 
 // Create HTML for a single job card
-function createJobCard(job) {
+function createJobCard(job, index) {
   return `
     <div class="col-md-6 col-lg-4">
       <div class="card h-100 shadow-sm">
         <div class="card-body d-flex flex-column">
-          <h5 class="card-title">${job.title}</h5>
-          <p class="card-text flex-grow-1">${job.short_desc}</p>
+          <h5 class="card-title">${escapeHtml(job.title)}</h5>
+          <p class="card-text flex-grow-1">${escapeHtml(job.short_desc)}</p>
           <p class="text-muted mb-2"><small>Close: ${job.close_date}</small></p>
           <button class="btn btn-outline-primary mt-auto" 
-                  data-job='${JSON.stringify(job)}'>
+                  data-job-index="${index}">
             Details
           </button>
         </div>
@@ -73,9 +87,10 @@ function createJobCard(job) {
 
 // Add click handlers to all job cards
 function attachCardListeners() {
-  document.querySelectorAll('button[data-job]').forEach(btn => {
+  document.querySelectorAll('button[data-job-index]').forEach(btn => {
     btn.addEventListener('click', e => {
-      const job = JSON.parse(e.currentTarget.getAttribute('data-job'));
+      const index = parseInt(e.currentTarget.getAttribute('data-job-index'));
+      const job = allJobs[index];
       openModal(job);
     });
   });
@@ -85,7 +100,7 @@ function attachCardListeners() {
 function openModal(job) {
   document.getElementById("jobModalLabel").textContent = job.title;
   document.getElementById("modalBody").innerHTML = `
-    <p>${job.long_desc}</p>
+    <p>${escapeHtml(job.long_desc)}</p>
     <p class="text-muted"><small>Close date: ${job.close_date}</small></p>
   `;
   
@@ -99,6 +114,13 @@ function createMailtoLink(job) {
   const body = `Job Number: ${job.id}\nJob Title: ${job.title}\n\nIMPORTANT: To ensure a response you must ATTACH YOUR RESUME to this email.`;
   
   return `mailto:${job.contact_email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // Show error message
