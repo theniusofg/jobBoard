@@ -2,8 +2,6 @@ name: Fetch Google Sheets Data
 
 on:
   workflow_dispatch:  # Manual trigger
-  schedule:
-    - cron: '0 0 * * *'  # Daily at midnight
 
 jobs:
   fetch-sheets-data:
@@ -26,37 +24,66 @@ jobs:
       env:
         GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
       run: |
+        mkdir -p logs
         node -e "
         const { GoogleAuth } = require('googleapis/build/src/auth/googleauth');
         const { google } = require('googleapis');
         const fs = require('fs');
 
         async function fetchSheetsData() {
-          const auth = new GoogleAuth({
-            credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
-            scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
-          });
+          try {
+            const auth = new GoogleAuth({
+              credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
+              scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
+            });
 
-          const sheets = google.sheets({ version: 'v4', auth });
-          
-          const SPREADSHEET_ID = '1pYihXbRT8heKDOqbl8MxGZxlzeA6ka_TyeazM-0Tts4';
-          
-          const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: 'Sheet1'
-          });
+            const sheets = google.sheets({ version: 'v4', auth });
+            
+            const SPREADSHEET_ID = '1pYihXbRT8heKDOqbl8MxGZxlzeA6ka_TyeazM-0Tts4';
+            
+            const response = await sheets.spreadsheets.values.get({
+              spreadsheetId: SPREADSHEET_ID,
+              range: 'Sheet1'
+            });
 
-          fs.writeFileSync('sheets_data.json', JSON.stringify(response.data.values, null, 2));
-          console.log('Data saved to sheets_data.json');
+            // Write raw response for debugging
+            fs.writeFileSync('logs/full_response.json', JSON.stringify(response, null, 2));
+            
+            // Write parsed data
+            fs.writeFileSync('sheets_data.json', JSON.stringify(response.data.values, null, 2));
+            
+            console.log('Data saved successfully');
+          } catch (error) {
+            // Detailed error logging
+            console.error('Detailed Error:', error);
+            fs.writeFileSync('logs/error_log.json', JSON.stringify({
+              message: error.message,
+              stack: error.stack,
+              fullError: error
+            }, null, 2));
+            throw error;
+          }
         }
 
-        fetchSheetsData().catch(console.error);
+        fetchSheetsData().catch(err => {
+          console.error('Uncaught Error:', err);
+          process.exit(1);
+        });
         "
+    
+    - name: Upload Debugging Artifacts
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: debugging-logs
+        path: |
+          logs/
+          sheets_data.json
     
     - name: Commit and Push Data
       run: |
         git config user.name github-actions
         git config user.email github-actions@github.com
-        git add sheets_data.json
-        git commit -m "Update sheets data" || echo "No changes to commit"
+        git add sheets_data.json logs/ || true
+        git commit -m "Update sheets data with logs" || echo "No changes to commit"
         git push
