@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: '0 0 * * *'
 
+permissions:
+  contents: write  # Add this to allow pushing
+
 jobs:
   fetch-sheets-data:
     runs-on: ubuntu-latest
