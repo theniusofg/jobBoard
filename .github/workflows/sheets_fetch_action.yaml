@@ -21,8 +21,10 @@ jobs:
       run: |
         npm init -y
         npm install googleapis
-   
+    
     - name: Create fetch script
+      env:
+        GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
       run: |
         cat > fetch.js << 'EOF'
         const { google } = require('googleapis');
@@ -30,6 +32,13 @@ jobs:
 
         async function fetchSheetsData() {
           try {
+            // Check if environment variable exists
+            if (!process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+              throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY environment variable is not set');
+            }
+
+            console.log('Service account key length:', process.env.GOOGLE_SERVICE_ACCOUNT_KEY.length);
+            
             const auth = new google.auth.GoogleAuth({
               credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
               scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
@@ -55,10 +64,18 @@ jobs:
 
         fetchSheetsData();
         EOF
+        
+        echo "Script created, checking environment..."
+        if [ -z "$GOOGLE_SERVICE_ACCOUNT_KEY" ]; then
+          echo "ERROR: GOOGLE_SERVICE_ACCOUNT_KEY is not available in this step"
+          exit 1
+        else
+          echo "Environment variable is available (length: ${#GOOGLE_SERVICE_ACCOUNT_KEY})"
+        fi
     
     - name: Fetch Google Sheets Data
       env:
-        GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.BOB }}
+        GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
       run: node fetch.js
     
     - name: Verify file exists
